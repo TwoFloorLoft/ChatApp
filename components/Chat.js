@@ -1,20 +1,102 @@
-import React, { Component } from 'react'
-import { View, Text, Button } from 'react-native';
-
+import React from 'react'
+import { View, StyleSheet, KeyboardAvoidingView } from 'react-native';
+import { GiftedChat, Bubble } from 'react-native-gifted-chat'
 
 export default class Chat extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = { name: "" };
+    constructor() {
+        super();
+        this.state = {
+            messages: [],
+        }
     }
+
+    componentDidMount() {
+        // Gets the username prop from Start.js
+        let { name } = this.props.route.params;
+        this.props.navigation.setOptions({ title: name });
+
+        this.setState({
+            messages: [
+                {
+                    _id: 1,
+                    text: `Hello ${name}`,
+                    createdAt: new Date(),
+                    user: {
+                        _id: 2,
+                        name: 'React Native',
+                        avatar: 'https://placeimg.com/140/140/any',
+                    },
+                },
+                {
+                    _id: 2,
+                    text: `${name} has entered Chat room`,
+                    createdAt: new Date(),
+                    system: true,
+                },
+            ],
+        })
+    }
+
+    onSend(messages = []) {
+        this.setState(previousState => ({
+            messages: GiftedChat.append(previousState.messages, messages),
+        }))
+    }
+
+    renderBubble(props) {
+        return (
+            <Bubble
+                {...props}
+                wrapperStyle={{
+                    right: {
+                        backgroundColor: '#1982FC'
+                    }
+                }}
+            />
+        )
+    }
+
+
+
     render() {
+
         let name = this.props.route.params.name;
         this.props.navigation.setOptions({ title: name });
-        this.props.navigation.setOptions({ title: name });
+
+        let bgColor = this.props.route.params.bgColor;
+
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text> Welcome to the Chat</Text>
+            <View style={styles.container}>
+                <View
+                    style={{
+                        backgroundColor: bgColor,
+                        width: '100%',
+                        height: '100%',
+                    }}
+                >
+                    <GiftedChat
+                        renderBubble={this.renderBubble.bind(this)}
+                        messages={this.state.messages}
+                        onSend={messages => this.onSend(messages)}
+                        user={{
+                            _id: 1,
+                        }}
+                    />
+                    {Platform.OS === 'ios' ? <KeyboardAvoidingView behavior="height" /> : null
+                    }
+                </View>
             </View>
         )
     }
 }
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    giftedChat: {
+        color: '#000',
+    },
+});
