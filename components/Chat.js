@@ -41,51 +41,53 @@ export default class Chat extends React.Component {
     componentDidMount() {
         // Set the page title once Chat is loaded
         let { name } = this.props.route.params
-
         // Adds the name to top of screen
         this.props.navigation.setOptions({ title: name })
 
         // Checks the user's connection status
         NetInfo.fetch().then(connection => {
             if (connection.isConnected) {
-                console.log('online');
+
+                // listens for updates in the collection
+                this.unsubscribe = this.referenceChatMessages
+                    .orderBy("createdAt", "desc")
+                    .onSnapshot(this.onCollectionUpdate);
+
+                // user authentication performed first
+                this.authUnsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+                    if (!user) {
+                        await firebase.auth().signInAnonymously();
+                    }
+                    //update user state with currently active user data
+                    this.setState({
+                        uid: user.uid,
+                        messages: [],
+                        user: {
+                            _id: user.uid,
+                            name: name,
+                            avatar: "https://placeimg.com/140/140/any",
+                        },
+                        isConnected: true
+                    })
+
+                })
+                // system message when user enters chat room
+                const systemMsg = {
+                    _id: `sys-${Math.floor(Math.random() * 100000)}`,
+                    text: `${name} has entered the chat`,
+                    createdAt: new Date(),
+                    system: true
+
+                };
+
+                this.referenceChatMessages.add(systemMsg)
             } else {
-                console.log('offline');
+                this.setState({ isConnected: false })
+                // get saved messages from local AsyncStorage
+                this.getMessages()
             }
-        });
-
-        // user authentication performed first
-        this.authUnsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
-            if (!user) {
-                await firebase.auth().signInAnonymously();
-            }
-
-            //update user state with currently active user data
-            this.setState({
-                uid: user.uid,
-                messages: [],
-                user: {
-                    _id: user.uid,
-                    name: name,
-                    avatar: "https://placeimg.com/140/140/any",
-                },
-            });
-
-            // listens for updates in the collection
-            this.unsubscribe = this.referenceChatMessages
-                .orderBy("createdAt", "desc")
-                .onSnapshot(this.onCollectionUpdate)
-
-            //referencing messages of current user
-            this.refMsgsUser = firebase
-                .firestore()
-                .collection("messages")
-                .where("uid", "==", this.state.uid);
-
-            // get saved messages from local AsyncStorage
-            this.getMessages();
-        });
-    }
+        })
+    };
 
     componentWillUnmount() {
 
@@ -115,16 +117,14 @@ export default class Chat extends React.Component {
                 _id: data._id,
                 text: data.text,
                 createdAt: data.createdAt.toDate(),
-                user: {
-                    _id: data.user._id,
-                    name: data.user.name,
-                    avatar: data.user.avatar
-                },
+                user: data.user,
             });
-        });
+        })
         this.setState({
-            messages: messages
-        });
+            messages
+        })
+        // save messages to local AsyncStorage
+        this.saveMessages()
     };
 
     // Add messages to database
