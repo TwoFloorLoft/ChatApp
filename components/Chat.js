@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import firebase from "firebase";
 import "firebase/firestore";
+import CustomActions from './CustomActions';
+import MapView from 'react-native-maps';
 
 const firebaseConfig = {
     apiKey: "AIzaSyDMtD19daCj_1HN24Ic29Lk6DkkMuXbC8Q",
@@ -26,6 +28,9 @@ export default class Chat extends React.Component {
                 name: "",
                 avatar: "",
             },
+            isConnected: false,
+            image: null,
+            location: null
         };
         //initializing firebase
         if (!firebase.apps.length) {
@@ -48,7 +53,7 @@ export default class Chat extends React.Component {
         NetInfo.fetch().then(connection => {
             if (connection.isConnected) {
 
-                // listens for updates in the collection
+                // Listens for updates in the collection
                 this.unsubscribe = this.referenceChatMessages
                     .orderBy("createdAt", "desc")
                     .onSnapshot(this.onCollectionUpdate);
@@ -58,7 +63,7 @@ export default class Chat extends React.Component {
                     if (!user) {
                         await firebase.auth().signInAnonymously();
                     }
-                    //update user state with currently active user data
+                    // Update user state with currently active user data
                     this.setState({
                         uid: user.uid,
                         messages: [],
@@ -71,19 +76,18 @@ export default class Chat extends React.Component {
                     })
 
                 })
-                // system message when user enters chat room
+                // System message when user enters chat room
                 const systemMsg = {
                     _id: `sys-${Math.floor(Math.random() * 100000)}`,
                     text: `${name} has entered the chat`,
                     createdAt: new Date(),
                     system: true
-
                 };
 
                 this.referenceChatMessages.add(systemMsg)
             } else {
                 this.setState({ isConnected: false })
-                // get saved messages from local AsyncStorage
+                // Get saved messages from local AsyncStorage
                 this.getMessages()
             }
         })
@@ -91,7 +95,7 @@ export default class Chat extends React.Component {
 
     componentWillUnmount() {
 
-        //Unsubscribe from collection updates
+        // Unsubscribe from collection updates
         this.authUnsubscribe();
         this.unsubscribe();
     }
@@ -109,15 +113,17 @@ export default class Chat extends React.Component {
     // When updated set the messages state with the current data 
     onCollectionUpdate = (querySnapshot) => {
         const messages = [];
-        // go through each document
+        // Go through each document
         querySnapshot.forEach((doc) => {
-            // get the QueryDocumentSnapshot's data
+            // Get the QueryDocumentSnapshot's data
             let data = doc.data();
             messages.push({
                 _id: data._id,
                 text: data.text,
                 createdAt: data.createdAt.toDate(),
                 user: data.user,
+                image: data.image || null,
+                location: data.location || null,
             });
         })
         this.setState({
@@ -136,11 +142,13 @@ export default class Chat extends React.Component {
             text: message.text || "",
             createdAt: message.createdAt,
             user: this.state.user,
+            image: message.image || "",
+            location: message.location || null,
         });
     }
 
     getMessages = async () => {
-        // load messages from local AsyncStorage 
+        // Load messages from local AsyncStorage 
         let messages = '';
         try {
             messages = await AsyncStorage.getItem('messages') || []
@@ -171,13 +179,6 @@ export default class Chat extends React.Component {
         }
     }
 
-    renderInputToolbar = (props) => {
-        if (this.state.isConnected == false) {
-        } else {
-            return <InputToolbar {...props} />;
-        }
-    }
-
     renderBubble(props) {
         return (
             <Bubble
@@ -191,7 +192,39 @@ export default class Chat extends React.Component {
         )
     }
 
+    renderInputToolbar = (props) => {
+        if (this.state.isConnected == false) {
+        } else {
+            return <InputToolbar {...props} />;
+        }
+    }
 
+    renderCustomActions = (props) => {
+        return <CustomActions {...props} />;
+    }
+
+    renderCustomView(props) {
+        const { currentMessage } = props;
+        if (currentMessage.location) {
+            return (
+                <MapView
+                    style={{
+                        width: 150,
+                        height: 100,
+                        borderRadius: 13,
+                        margin: 3
+                    }}
+                    region={{
+                        latitude: parseInt(currentMessage.location.latitude),
+                        longitude: parseInt(currentMessage.location.longitude),
+                        latitudeDelta: 0.0922,
+                        longitudeDelta: 0.0421,
+                    }}
+                />
+            );
+        }
+        return null;
+    };
 
     render() {
 
@@ -211,6 +244,8 @@ export default class Chat extends React.Component {
                 >
                     <GiftedChat
                         renderInputToolbar={this.renderInputToolbar}
+                        renderActions={this.renderCustomActions}
+                        renderCustomView={this.renderCustomView}
                         renderBubble={this.renderBubble.bind(this)}
                         messages={this.state.messages}
                         user={this.state.user}
