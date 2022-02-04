@@ -29,8 +29,6 @@ export default class Chat extends React.Component {
                 avatar: "",
             },
             isConnected: false,
-            image: null,
-            location: null
         };
         //initializing firebase
         if (!firebase.apps.length) {
@@ -122,8 +120,8 @@ export default class Chat extends React.Component {
                 text: data.text,
                 createdAt: data.createdAt.toDate(),
                 user: data.user,
-                image: data.image || null,
-                location: data.location || null,
+                image: data.image,
+                location: data.location,
             });
         })
         this.setState({

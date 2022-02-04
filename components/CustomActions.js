@@ -95,7 +95,7 @@ export default class CustomActions extends React.Component {
         const imageNameBefore = uri.split("/");
         const imageName = imageNameBefore[imageNameBefore.length - 1];
 
-        const ref = firebase.storage().ref().child(`images/${imageName}`);
+        const ref = firebase.storage().refFromURL("gs://chatapp-5a447.appspot.com").child(`images/${imageName}`);
 
         const snapshot = await ref.put(blob);
 
